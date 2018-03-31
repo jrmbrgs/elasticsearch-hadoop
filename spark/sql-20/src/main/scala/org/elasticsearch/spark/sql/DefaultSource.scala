@@ -130,6 +130,7 @@ private[sql] case class ElasticsearchRelation(parameters: Map[String, String], @
 
   @transient lazy val valueWriter = { new ScalaValueWriter }
 
+  lazy val (mapping, geoInfo) = SchemaUtils.discoverMappingAsField(cfg)
   override def schema = userSchema.getOrElse(lazySchema.struct)
 
   // TableScan
@@ -178,8 +179,7 @@ private[sql] case class ElasticsearchRelation(parameters: Map[String, String], @
         }
       }
     }
-
-    new ScalaEsRowRDD(sqlContext.sparkContext, paramWithScan, lazySchema)
+    new ScalaEsRowRDD(sqlContext.sparkContext, paramWithScan, SchemaUtils.Schema(mapping, schema))
   }
 
   // introduced in Spark 1.6
@@ -266,7 +266,7 @@ private[sql] case class ElasticsearchRelation(parameters: Map[String, String], @
         }
 
         // further more, match query only makes sense with String types so for other types apply a terms query (aka strictPushDown)
-        val attrType = lazySchema.struct(attribute).dataType
+        val attrType = schema(attribute).dataType
         val isStrictType = attrType match {
           case DateType |
                TimestampType => true
